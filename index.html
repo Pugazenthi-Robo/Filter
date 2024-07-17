@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Excel to View</title>
+  <h1>Excel Day Viewer</h1>
+  <h5>Load the Excel file needs to process</h5>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  <style>
+    .duration {
+      padding: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .red { background-color: red; }
+    .orange { background-color: orange; }
+    .green { background-color: green; }
+  </style>
+</head>
+<body>
+
+<input type="file" id="upload" accept=".xlsx, .xls" />
+<select id="nameDropdown"></select>
+<p id="duration" class="duration"></p>
+<canvas id="myChart" style="width:100%;max-width:600px"></canvas>
+
+<script>
+document.getElementById('upload').addEventListener('change', handleFile, false);
+document.getElementById('nameDropdown').addEventListener('change', handleNameChange, false);
+
+let jsonData = [];
+
+function handleFile(event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+    
+    populateDropdown(jsonData);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function populateDropdown(data) {
+  const dropdown = document.getElementById('nameDropdown');
+  dropdown.innerHTML = '<option value="">Select a name</option>';
+  for (let i = 1; i < data.length; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.text = data[i][0];
+    dropdown.appendChild(option);
+  }
+}
+
+function parseDate(dateSerial) {
+  const date = new Date((dateSerial - (25567 + 1)) * 86400 * 1000);
+  return date;
+}
+
+function handleNameChange() {
+  const selectedIndex = document.getElementById('nameDropdown').value;
+  if (selectedIndex) {
+    const selectedData = jsonData[selectedIndex];
+    const startDateSerial = selectedData[1];
+    const endDateSerial = selectedData[2];
+
+    const startDate = parseDate(startDateSerial);
+    const endDate = parseDate(endDateSerial);
+
+    console.log('Parsed start date:', startDate);
+    console.log('Parsed end date:', endDate);
+
+    if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+      const duration = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)); 
+      const value = selectedData[3];
+      const durationElement = document.getElementById('duration');
+      durationElement.innerText = `Duration: ${duration} days`;
+      durationElement.classList.remove('red', 'orange', 'green');
+      if (duration < 10) {
+        durationElement.classList.add('red');
+      } else if (duration <= 12) {
+        durationElement.classList.add('orange');
+      } else {
+        durationElement.classList.add('green');
+      }
+
+
+      createChart([selectedData[0]], [value]);
+    } else {
+      document.getElementById('duration').innerText = 'Invalid date format';
+      document.getElementById('duration').classList.remove('red', 'orange', 'green');
+    }
+  }
+}
+
+function createChart(label, data) {
+  const barColors = ["blue"];
+
+  new Chart("myChart", {
+    type: "bar",
+    data: {
+      labels: label,
+      datasets: [{
+        label: 'Value',
+        backgroundColor: barColors,
+        data: data
+      }]
+    },
+    options: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: "Data from Excel"
+      }
+    }
+  });
+}
+</script>
+
+</body>
+</html>
