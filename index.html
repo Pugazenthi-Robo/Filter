@@ -2,8 +2,8 @@
 <html>
 <head>
   <title>Excel to View</title>
-  <h1>Excel Day Viewer</h1>
-  <h5>Load the Excel file needs to process</h5>
+  <h1 class="center">Excel Day Viewer</h1>
+  <h5 class="center">Load the Excel file needs to process</h5>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
   <style>
@@ -16,13 +16,19 @@
     .red { background-color: red; }
     .orange { background-color: orange; }
     .green { background-color: green; }
+    .center {
+      text-align: center;
+      margin: auto;
+      width: 60%;
+      border: 3px solid #eb5d0b;
+      padding: 10px;
+    }
   </style>
 </head>
 <body>
-
 <input type="file" id="upload" accept=".xlsx, .xls" />
 <select id="nameDropdown"></select>
-<p id="duration" class="duration"></p>
+<div id="jobDetails"></div>
 <canvas id="myChart" style="width:100%;max-width:600px"></canvas>
 
 <script>
@@ -39,7 +45,6 @@ function handleFile(event) {
     const workbook = XLSX.read(data, { type: 'array' });
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
     jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-    
     populateDropdown(jsonData);
   };
   reader.readAsArrayBuffer(file);
@@ -48,62 +53,68 @@ function handleFile(event) {
 function populateDropdown(data) {
   const dropdown = document.getElementById('nameDropdown');
   dropdown.innerHTML = '<option value="">Select a name</option>';
+  const names = new Set();
   for (let i = 1; i < data.length; i++) {
-    const option = document.createElement('option');
-    option.value = i;
-    option.text = data[i][0];
-    dropdown.appendChild(option);
+    names.add(data[i][1]);
   }
+  names.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.text = name;
+    dropdown.appendChild(option);
+  });
 }
 
-function parseDate(dateSerial) {
-  const date = new Date((dateSerial - (25567 + 1)) * 86400 * 1000);
-  return date;
+function parseDate(date) {
+  if (typeof date === 'string') {
+    const parts = date.split('-');
+    return new Date(parts[2], parts[1] - 1, parts[0]);
+  } else if (typeof date === 'number') {
+    return new Date((date - (25567 + 1)) * 86400 * 1000);
+  }
+  return null;
 }
 
 function handleNameChange() {
-  const selectedIndex = document.getElementById('nameDropdown').value;
-  if (selectedIndex) {
-    const selectedData = jsonData[selectedIndex];
-    const startDateSerial = selectedData[1];
-    const endDateSerial = selectedData[2];
+  const selectedName = document.getElementById('nameDropdown').value;
+  if (selectedName) {
+    const filteredData = jsonData.filter(row => row[1] === selectedName);
+    const jobDetails = document.getElementById('jobDetails');
+    jobDetails.innerHTML = '';
 
-    const startDate = parseDate(startDateSerial);
-    const endDate = parseDate(endDateSerial);
+    filteredData.forEach((row, index) => {
+      const startDate = parseDate(row[2]);
+      const endDate = parseDate(row[3]);
+      if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+        const duration = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
+        const value = row[4];
+        const jobCode = row[0];
 
-    console.log('Parsed start date:', startDate);
-    console.log('Parsed end date:', endDate);
-
-    if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-      const duration = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)); 
-      const value = selectedData[3];
-      const durationElement = document.getElementById('duration');
-      durationElement.innerText = `Duration: ${duration} days`;
-      durationElement.classList.remove('red', 'orange', 'green');
-      if (duration < 10) {
-        durationElement.classList.add('red');
-      } else if (duration <= 12) {
-        durationElement.classList.add('orange');
-      } else {
-        durationElement.classList.add('green');
+        const jobDetail = document.createElement('p');
+        jobDetail.innerText = `Job Code: ${jobCode}, Duration: ${duration} days, Value: ${value}`;
+        jobDetail.classList.add('duration');
+        if (duration < 10) {
+          jobDetail.classList.add('red');
+        } else if (duration <= 12) {
+          jobDetail.classList.add('orange');
+        } else {
+          jobDetail.classList.add('green');
+        }
+        jobDetails.appendChild(jobDetail);
       }
+    });
 
-
-      createChart([selectedData[0]], [value]);
-    } else {
-      document.getElementById('duration').innerText = 'Invalid date format';
-      document.getElementById('duration').classList.remove('red', 'orange', 'green');
-    }
+    createChart(filteredData.map(row => `Job Code ${row[0]}`), filteredData.map(row => row[4]));
   }
 }
 
-function createChart(label, data) {
-  const barColors = ["blue"];
+function createChart(labels, data) {
+  const barColors = ["blue", "orange", "green", "red", "purple", "yellow", "cyan", "magenta"];
 
   new Chart("myChart", {
     type: "bar",
     data: {
-      labels: label,
+      labels: labels,
       datasets: [{
         label: 'Value',
         backgroundColor: barColors,
@@ -120,6 +131,5 @@ function createChart(label, data) {
   });
 }
 </script>
-
 </body>
 </html>
