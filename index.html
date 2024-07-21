@@ -70,9 +70,28 @@ function parseDate(date) {
     const parts = date.split('-');
     return new Date(parts[2], parts[1] - 1, parts[0]);
   } else if (typeof date === 'number') {
-    return new Date((date - (25567 + 1)) * 86400 * 1000);
+    return new Date((date - (25567 + 2)) * 86400 * 1000);
   }
   return null;
+}
+
+function calculateWeekdays(startDate, endDate) {
+  let count = 0;
+  let weekends = 0;
+  let currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      weekends++;
+    } else {
+      count++;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+  console.log(`Start Date: ${startDate}, End Date: ${endDate}`);
+  console.log(`Total Days: ${totalDays}, Weekends: ${weekends}, Weekdays Counted: ${count}`);
+  return count;
 }
 
 function handleNameChange() {
@@ -86,12 +105,14 @@ function handleNameChange() {
       const startDate = parseDate(row[2]);
       const endDate = parseDate(row[3]);
       if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-        const duration = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
+        const duration = calculateWeekdays(startDate, endDate);
         const value = row[4];
         const jobCode = row[0];
+        const formattedStartDate = startDate.toLocaleDateString();
+        const formattedEndDate = endDate.toLocaleDateString();
 
         const jobDetail = document.createElement('p');
-        jobDetail.innerText = `Job Code: ${jobCode}, Duration: ${duration} days, Value: ${value}`;
+        jobDetail.innerText = `Job Code: ${jobCode}, Duration: ${duration} weekdays, Start Date: ${formattedStartDate}, End Date: ${formattedEndDate}, Value: ${value}`;
         jobDetail.classList.add('duration');
         if (duration < 10) {
           jobDetail.classList.add('red');
@@ -107,6 +128,7 @@ function handleNameChange() {
     createChart(filteredData.map(row => `Job Code ${row[0]}`), filteredData.map(row => row[4]));
   }
 }
+
 
 function createChart(labels, data) {
   const barColors = ["blue", "orange", "green", "red", "purple", "yellow", "cyan", "magenta"];
